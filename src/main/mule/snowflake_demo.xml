@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="eb882d45-59bf-4406-94ed-fd78b6592d42" >
+		<snowflake:snowflake-connection accountName="gewlshc-qh37824" warehouse="ak_warehouse" database="ak_database" schema="ak_schema" user="mulesoft" password="Mulesoft135@" role="ACCOUNTADMIN" />
+	</snowflake:snowflake-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="8430885d-a4a7-4b30-9b92-def4bab1ea2d" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="snowflake_demoFlow" doc:id="f892a9a7-f3a0-4f42-a50a-3cd3cf8e9987" >
+		<http:listener doc:name="Listener" doc:id="f54593de-e6f5-4730-9bb6-b62c79066062" config-ref="HTTP_Listener_config" path="/snowflake"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="c10b3704-0dd7-4598-9454-3540e0beafcd" >
+			<route >
+				<set-variable value="#[%dw 2.0&#10;output application/json&#10;&#10;var key1 = payload pluck ((value,key) -&gt; key)&#10;---&#10;key1[0]]" doc:name="Set Variable" doc:id="d6435018-d63b-4d97-9244-a112e2ce11b0" variableName="key1" />
+				<set-variable doc:name="Set Variable" doc:id="2f2ac3c4-a06c-4df1-9514-07cfcc52c685" variableName="value1" value="#[%dw 2.0&#10;output application/json&#10;&#10;var value1 = valuesOf(payload[0])&#10;var ov = value1 reduce ((item,accumulator = '') -&gt;&#10;	accumulator ++ &quot;'&quot;++ item ++&quot;'&quot;++ &quot;,&quot;)&#10;---&#10;ov[0 to -2]]" />
+				<snowflake:insert doc:name="Insert" doc:id="feaabfc1-b1b7-4f5c-bce8-6977c5cd92ba" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[#["insert into $(vars.key1) values($(vars.value1))"]]]></snowflake:sql>
+		</snowflake:insert>
+			</route>
+			<route >
+				<set-variable value="#[%dw 2.0&#10;output application/json&#10;&#10;var key1 = payload pluck ((value,key) -&gt; key)&#10;---&#10;key1[1]]" doc:name="Set Variable1" doc:id="b19249b4-fb9c-49b5-9f30-2cfb31b815ad" variableName="key2" />
+				<set-variable value="#[%dw 2.0&#10;output application/json&#10;&#10;var value1 = valuesOf(payload[1])&#10;var ov = value1 reduce ((item,accumulator = '') -&gt;&#10;	accumulator ++ &quot;'&quot;++ item ++&quot;'&quot;++ &quot;,&quot;)&#10;---&#10;ov[0 to -2]]" doc:name="Set Variable" doc:id="4e459e75-57e0-4c07-8e9b-c67773a9a97f" variableName="value2" />
+				<snowflake:insert doc:name="Insert" doc:id="1ef14a8b-09f4-4c22-9ac0-42ab7acad651" config-ref="Snowflake_Config">
+					<snowflake:sql ><![CDATA[#["insert into $(vars.key2) values($(vars.value2))"]]]></snowflake:sql>
+				</snowflake:insert>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="86d89688-2831-477e-9fc4-0cb3538b9072">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Records posted successfully"
+	
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+	</flow>
+</mule>
